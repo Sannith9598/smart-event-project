@@ -7,43 +7,53 @@ const cloudinary = require('cloudinary').v2;
 require('dotenv').config();
 const auth = require('../middleware/auth');
 
+// cloudinary configuration
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Multer memory storage (no files written to disk)
+// multer — store file in memory (RAM)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // max 5 MB per file
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB max
 });
 
-// Protected endpoint: managers upload images
+// upload image to cloudinary
 router.post('/image', auth, upload.single('file'), async (req, res) => {
   try {
-    if (req.user.role !== 'MANAGER') return res.status(403).json({ error: 'Only managers can upload' });
+    if (req.user.role !== 'MANAGER') {
+      return res.status(403).json({ error: 'Only managers can upload' });
+    }
+
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    const streamUpload = (buffer) => {
+    // convert buffer to cloudinary stream
+    const uploadFromBuffer = (buffer) => {
       return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: 'smart_event', resource_type: 'image' },
-          (error, result) => {
+        let stream = cloudinary.uploader.upload_stream(
+          { folder: 'smart_event_media', resource_type: 'auto' },
+          (err, result) => {
             if (result) resolve(result);
-            else reject(error);
+            else reject(err);
           }
         );
         streamifier.createReadStream(buffer).pipe(stream);
       });
     };
 
-    const result = await streamUpload(req.file.buffer);
-    // return URL(s) to client
-    res.json({ success: true, url: result.secure_url, public_id: result.public_id });
+    const result = await uploadFromBuffer(req.file.buffer);
+
+    return res.json({
+      success: true,
+      url: result.secure_url,
+      public_id: result.public_id
+    });
+
   } catch (err) {
-    console.error('Upload error', err);
-    res.status(500).json({ error: 'Upload failed' });
+    console.error("Upload error:", err);
+    res.status(500).json({ error: "Upload failed" });
   }
 });
 

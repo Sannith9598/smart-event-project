@@ -36,16 +36,37 @@ router.get('/', async (req, res) => {
   }
 });
 
-// PROTECTED: manager creates event
+// PROTECTED: manager creates event (updated to accept gallery URLs)
 router.post('/', auth, async (req, res) => {
   try {
     // only managers can create events
     if (req.user.role !== 'MANAGER') return res.status(403).json({ error: 'Only managers can create events' });
 
-    const { title, description, category, location, price, packageDetails, gallery, dateAvailableFrom, dateAvailableTo } = req.body;
+    const {
+      title,
+      description,
+      category,
+      location,
+      price,
+      packageDetails,
+      gallery = [],          // expect array of image URLs
+      dateAvailableFrom,
+      dateAvailableTo
+    } = req.body;
 
     // Basic validation
     if (!title) return res.status(400).json({ error: 'title is required' });
+
+    // Validate gallery: must be array, max 10 items, each must be a string and look like a URL
+    if (!Array.isArray(gallery)) return res.status(400).json({ error: 'gallery must be an array of image URLs' });
+    const MAX_GALLERY = 10;
+    if (gallery.length > MAX_GALLERY) return res.status(400).json({ error: `gallery can have at most ${MAX_GALLERY} images` });
+
+    // simple URL-ish validation (not perfect, but prevents obvious non-urls)
+    const urlLike = str => typeof str === 'string' && (str.startsWith('http://') || str.startsWith('https://'));
+    for (const g of gallery) {
+      if (!urlLike(g)) return res.status(400).json({ error: 'gallery must contain valid http/https URLs only' });
+    }
 
     const ev = await Event.create({
       managerId: req.user.id,
@@ -55,7 +76,7 @@ router.post('/', auth, async (req, res) => {
       location,
       price,
       packageDetails,
-      gallery,
+      gallery,               // Sequelize will store JSON
       dateAvailableFrom,
       dateAvailableTo
     });
@@ -66,5 +87,6 @@ router.post('/', auth, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 module.exports = router;
