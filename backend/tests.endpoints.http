@@ -28,13 +28,13 @@ Content-Type: application/json
 # NOTE: After step (2) copy the returned "token" value and paste it into the Authorization header below.
 # 3) Protected route test (use Authorization header: Bearer <token>)
 GET http://localhost:5000/api/protected
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwicm9sZSI6Ik1BTkFHRVIiLCJpYXQiOjE3NjQ0MDM1NzgsImV4cCI6MTc2NTAwODM3OH0.3cwtAC5AuvBnqnmOHD9DXF6LiBb9lxVmbhRrHzOuWek
+Authorization: Bearer <token>
 ###
 
 # 4) Create an event (manager only) — update Authorization with token before sending
 POST http://localhost:5000/api/events
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwicm9sZSI6Ik1BTkFHRVIiLCJpYXQiOjE3NjQ0MDM1NzgsImV4cCI6MTc2NTAwODM3OH0.3cwtAC5AuvBnqnmOHD9DXF6LiBb9lxVmbhRrHzOuWek
+Authorization: Bearer <token>
 
 {
   "title": "REST Client Event",
