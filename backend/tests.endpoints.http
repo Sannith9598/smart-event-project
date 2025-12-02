@@ -1,11 +1,25 @@
-### Smart Event Backend quick check (REST Client)
+### Smart Event Backend — REST Client Quick Tests
+# Save this file as backend/tests.endpoints.http and run requests from VS Code using the REST Client extension.
 
-# 1) Register a manager (safe to run even if user exists — will return error)
+# -------------------------
+# 1) Health check (no auth)
+# -------------------------
+GET http://localhost:5000/api/hello
+Accept: application/json
+
+###
+# Expected: {"message":"Hello from Smart Event Backend"}
+# If you get a connection error -> make sure backend is running (npm run dev in backend).
+
+# -------------------------
+# 2) Register (manager)
+# -------------------------
+# Run this once to create a manager user. If email exists you'll get a 400 and that's OK.
 POST http://localhost:5000/api/auth/register
 Content-Type: application/json
 
 {
-  "name": "MgrREST",
+  "name": "mgrrest",
   "email": "mgrrest@example.com",
   "password": "MgrPass123",
   "role": "MANAGER",
@@ -13,8 +27,11 @@ Content-Type: application/json
 }
 
 ###
+# Expected: success true with user object OR a 400 "Email already registered".
 
-# 2) Login (Manager) — run this AFTER register (or if already registered)
+# -------------------------
+# 3) Login (manager) -> get token
+# -------------------------
 POST http://localhost:5000/api/auth/login
 Content-Type: application/json
 
@@ -24,17 +41,27 @@ Content-Type: application/json
 }
 
 ###
+# Expected: {"success":true,"user":{...},"token":"eyJ..."}
+# IMPORTANT: copy the token value (the long string) WITHOUT quotes for steps below.
 
-# NOTE: After step (2) copy the returned "token" value and paste it into the Authorization header below.
-# 3) Protected route test (use Authorization header: Bearer <token>)
+# -------------------------
+# 4) Protected test (requires token)
+# -------------------------
+# After step (3) paste your token into the Authorization header below, like:
+# Authorization: Bearer eyJhbGciOiJI...
 GET http://localhost:5000/api/protected
-Authorization: Bearer <token>
-###
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwicm9sZSI6Ik1BTkFHRVIiLCJpYXQiOjE3NjQ2ODgzODQsImV4cCI6MTc2NTI5MzE4NH0.OgPnkAitSH81b-_e6L-AFznmiHEKoMduaFSjh6CQEDA
 
-# 4) Create an event (manager only) — update Authorization with token before sending
+###
+# Expected: {"message":"Protected OK","user":{...}}  — confirms JWT & auth middleware work.
+
+# -------------------------
+# 5) Create an event (manager) — uses token
+# -------------------------
+# Paste the token in the Authorization header before running.
 POST http://localhost:5000/api/events
 Content-Type: application/json
-Authorization: Bearer <token>
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwicm9sZSI6Ik1BTkFHRVIiLCJpYXQiOjE3NjQ2ODgzODQsImV4cCI6MTc2NTI5MzE4NH0.OgPnkAitSH81b-_e6L-AFznmiHEKoMduaFSjh6CQEDA
 
 {
   "title": "REST Client Event",
@@ -48,13 +75,46 @@ Authorization: Bearer <token>
 }
 
 ###
+# Expected: {"success":true,"event":{...}} containing event.id and gallery array.
 
-# 5) Get public events (no auth required)
+# -------------------------
+# 6) List events (public)
+# -------------------------
 GET http://localhost:5000/api/events
+Accept: application/json
 
 ###
+# Expected: {"success":true,"events":[ ... ]} with your created event(s) listed.
 
-# 6) Optional: Protected route showing how to pass JWT for curl/Postman tests
-# (This is an example header only; not executed in REST file)
-# Authorization: Bearer <PASTE_MANAGER_TOKEN_HERE>
+# -------------------------
+# 7) Upload image to Cloudinary (multipart/form-data)
+# -------------------------
+# IMPORTANT: paste the token in the Authorization header.
+# Use an absolute path for the file on your machine. Example Windows path shown.
+POST http://localhost:5000/api/uploads/image
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwicm9sZSI6Ik1BTkFHRVIiLCJpYXQiOjE3NjQ2ODgzODQsImV4cCI6MTc2NTI5MzE4NH0.OgPnkAitSH81b-_e6L-AFznmiHEKoMduaFSjh6CQEDA
 
+
+file: C:\Users\sanni\Downloads\shiva.jpg
+
+###
+# Expected: {"success":true,"url":"https://res.cloudinary.com/...", "public_id":"smart_event_media/..."}
+
+# -------------------------
+# 8) Create event using the newly uploaded image URL
+# -------------------------
+# After step 7 you get a url. Paste that URL into gallery below and run (and also paste token).
+POST http://localhost:5000/api/events
+Authorization: Bearer <PASTE_MANAGER_TOKEN_HERE>
+Content-Type: application/json
+
+{
+  "title": "Event with uploaded image",
+  "description": "This event uses the image we uploaded in step 7",
+  "category": "Party",
+  "location": "Bangalore",
+  "price": 4200,
+  "gallery": [
+    "https://res.cloudinary.com/df4q8ylv7/image/upload/v1764394902/smart_event_media/fyylibtbatatqqacrgjg.jpg"
+  ]
+}
