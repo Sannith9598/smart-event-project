@@ -17,7 +17,6 @@ export default function EventForm({ onCreated }) {
   const [error, setError] = useState("");
   const [previewUrls, setPreviewUrls] = useState([]); // local previews
 
-  // file input change handler: store File objects and create preview URLs
   function handleFilesChange(e) {
     const f = Array.from(e.target.files || []);
     setFiles(f);
@@ -26,31 +25,35 @@ export default function EventForm({ onCreated }) {
   }
 
   // Upload a single file to /api/uploads/image using FormData
+  // This explicitly adds Authorization header read from localStorage
   async function uploadFile(file) {
     const formData = new FormData();
     formData.append("file", file); // backend expects key "file"
-    const resp = await api.post("/uploads/image", formData, {
-      headers: { "Content-Type": "multipart/form-data" } // axios will add boundary automatically
-    });
-    // resp.data should contain { success:true, url: "...", public_id: "..." }
+
+    // Read token directly from localStorage to ensure header present
+    const token = (localStorage.getItem("token") || "").trim();
+    const headers = { "Content-Type": "multipart/form-data" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    // Use axios instance but pass explicit headers to guarantee Authorization is sent
+    const resp = await api.post("/uploads/image", formData, { headers });
     return resp.data.url;
   }
 
-  // Submit handler: upload files first, then create event with gallery URLs
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     if (!title) return setError("Title is required");
     setUploading(true);
     try {
-      // 1) upload files sequentially (simpler) - could be parallelized later
       const galleryUrls = [];
       for (const f of files) {
         const url = await uploadFile(f);
         galleryUrls.push(url);
       }
 
-      // 2) create event
       const body = {
         title,
         description,
@@ -61,9 +64,8 @@ export default function EventForm({ onCreated }) {
       };
 
       const createResp = await api.post("/events", body);
-      // success: call onCreated callback for parent to refresh list or show message
       if (onCreated) onCreated(createResp.data.event);
-      // reset form
+
       setTitle("");
       setDescription("");
       setCategory("");
@@ -114,7 +116,6 @@ export default function EventForm({ onCreated }) {
           <input type="file" accept="image/*" multiple onChange={handleFilesChange} />
         </div>
 
-        {/* previews */}
         {previewUrls.length > 0 && (
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             {previewUrls.map((u, idx) => (
